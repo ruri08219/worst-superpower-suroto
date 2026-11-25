@@ -9,12 +9,15 @@ import sys
 
 ENTRY = "The power to always know exactly what time it is \u2014 in a timezone nobody lives in."
 MAX_CHARS = 140
+MAX_BYTES = 560
 
 
 def validate(text):
     """Return an error string, or None if the entry is valid."""
     if not text or not text.strip():
         return "entry is empty or whitespace-only"
+    if text != text.strip():
+        return "entry has leading or trailing whitespace"
     if len(text) > MAX_CHARS:
         return "entry exceeds 140 characters"
     if "\n" in text or "\r" in text:
@@ -23,9 +26,11 @@ def validate(text):
         if ord(ch) < 0x20:
             return "entry contains a control character"
     try:
-        text.encode("utf-8")
+        encoded = text.encode("utf-8")
     except UnicodeEncodeError:
         return "entry is not UTF-8 encodable"
+    if len(encoded) > MAX_BYTES:
+        return "entry exceeds 560 bytes"
     return None
 
 
@@ -39,6 +44,16 @@ def main():
     path = os.path.join(out_dir, "entry.txt")
     with open(path, "w", encoding="utf-8", newline="") as f:
         f.write(ENTRY)
+    with open(path, "rb") as f:
+        raw = f.read()
+    try:
+        round_trip = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        print("round-trip check failed: entry.txt is not valid UTF-8", file=sys.stderr)
+        return 1
+    if round_trip != ENTRY:
+        print("round-trip check failed: entry.txt does not match ENTRY", file=sys.stderr)
+        return 1
     return 0
 
 
